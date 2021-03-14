@@ -10,18 +10,17 @@ import urllib.request
 import shutil
 
 #todo:
-#0) unzip not only ".zip". but also ".ZIP"
 #1) download not only files, but folders
 #2) if there's something in local folder, do sync
 #3) option to forcibly redownload all shit
 #4) disable debug paramiko logging, add current operation and percent complete
 #5) run in background to switch contenxt between cases
-#6): correctly handle cases with two upload locations: SFTP Log Locations
+#6): correctly handle cases with two upload locations: SFTP Log Locations:
 #http://supportattachments.aws.cis.local/ticket/04504159; http://syd.supportattachments.aws.cis.local/ticket/04504159
 
 
 
-def DownloadAllFromHttp(logFolderUrl, localFolder):
+def download_all_from_http(logFolderUrl, localFolder):
     with urllib.request.urlopen(logFolderUrl) as response:
         webPageContents = response.read().decode()
 
@@ -34,6 +33,20 @@ def DownloadAllFromHttp(logFolderUrl, localFolder):
             with open(file_name, 'wb') as out_file:
                 shutil.copyfileobj(response2, out_file)
         print('downloaded ' + file_name)
+
+def unzip_all_in_folder(local_path, extension)
+        
+    os.chdir(local_path)  # change directory from working dir to dir with files
+    for item in os.listdir(local_path):  # loop through items in dir
+        if item.lower().endswith(extension):  # check for ".zip" extension
+            file_name = os.path.abspath(item)  # get full path of files
+            name_for_new_subfolder = os.path.basename(item)
+
+            zip_ref = zipfile.ZipFile(file_name)  # create zipfile object
+            zip_ref.extractall(download_local_path + '\\' + name_for_new_subfolder)  # extract file to dir
+            print("extracted " + file_name)
+            zip_ref.close()  # close file
+
 
 class SftpClient:
     _connection = None
@@ -123,7 +136,6 @@ class Case:
         self.caseNumber = case_number
 
     def add_sftp_and_folder(self, raw_clip):
-        self.folderPath = str.format(r'G:\keys\{}', self.caseNumber) #this line is duplicate in two different methods
         try:
             self.awsPath2 = re.search(r'http.+supportattachments.+\d{8}', raw_clip).group()
         except:
@@ -147,7 +159,6 @@ class Case:
         except FileExistsError:
             # directory already exists
             pass
-
 
 
     def __repr__(self):
@@ -179,39 +190,23 @@ if __name__ == '__main__':
             client.download(item[0], download_local_path + item[1])
             print("downloaded " + item[0])
         client.close()
-        extension = ".zip"
-        os.chdir(download_local_path)  # change directory from working dir to dir with files
-        for item in os.listdir(download_local_path):  # loop through items in dir
-            if item.endswith(extension):  # check for ".zip" extension
-                file_name = os.path.abspath(item)  # get full path of files
-                name_for_new_subfolder = os.path.basename(item)[0:17]
+        unzip_all_in_folder(download_local_path, ".zip")
+        # os.chdir(download_local_path)  # change directory from working dir to dir with files
+        # for item in os.listdir(download_local_path):  # loop through items in dir
+        #     if item.endswith(extension):  # check for ".zip" extension
+        #         file_name = os.path.abspath(item)  # get full path of files
+        #         name_for_new_subfolder = os.path.basename(item)[0:17]
 
-                zip_ref = zipfile.ZipFile(file_name)  # create zipfile object
-                zip_ref.extractall(download_local_path + '\\' + name_for_new_subfolder)  # extract file to dir
-                print("extracted " + file_name)
-                zip_ref.close()  # close file
-
-    if runtime_option == "C":
-        log_path_string = "Log upload locations:\n" \
-                          "1) Customer portal - {}\n" \
-                          "2) SFTP - {}\n" \
-                          "   SFTP Login: {}\n" \
-                          "   SFTP Password: {}".format(currentCase.awsPath,
-                                                     currentCase.sftpLinkFull,
-                                                     currentCase.sftpLogin,
-                                                     currentCase.sftpPassw)
-        win32clipboard.OpenClipboard()
-        win32clipboard.SetClipboardData(win32clipboard.CF_UNICODETEXT, log_path_string)
-        win32clipboard.CloseClipboard()
-
+        #         zip_ref = zipfile.ZipFile(file_name)  # create zipfile object
+        #         zip_ref.extractall(download_local_path + '\\' + name_for_new_subfolder)  # extract file to dir
+        #         print("extracted " + file_name)
+        #         zip_ref.close()  # close file
 
 
 
     if runtime_option == "Z":
         currentCase.add_sftp_and_folder(raw_clip)
-
         download_local_path = 'G:\\keys\\' + currentCase.caseNumber + '\\'
-        DownloadAllFromHttp(currentCase.awsPath2, download_local_path)
+        download_all_from_http(currentCase.awsPath2, download_local_path)
+        unzip_all_in_folder(download_local_path, ".zip")
 
-
-    #input('Press Enter to Continue...')
