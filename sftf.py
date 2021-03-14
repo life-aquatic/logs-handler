@@ -34,18 +34,24 @@ def download_all_from_http(logFolderUrl, localFolder):
                 shutil.copyfileobj(response2, out_file)
         print('downloaded ' + file_name)
 
-def unzip_all_in_folder(local_path, extension)
-        
+def unzip_all_in_folder(local_path, extension):
     os.chdir(local_path)  # change directory from working dir to dir with files
     for item in os.listdir(local_path):  # loop through items in dir
         if item.lower().endswith(extension):  # check for ".zip" extension
             file_name = os.path.abspath(item)  # get full path of files
-            name_for_new_subfolder = os.path.basename(item)
-
+            name_for_new_subfolder = os.path.basename(item)[0:-4]
             zip_ref = zipfile.ZipFile(file_name)  # create zipfile object
             zip_ref.extractall(download_local_path + '\\' + name_for_new_subfolder)  # extract file to dir
             print("extracted " + file_name)
             zip_ref.close()  # close file
+
+def case_list_from_clipboard(local_path):
+    active_cases = re.findall("\d{8}", get_clipboard())
+    downloaded_cases = os.listdir(local_path)
+    for i in downloaded_cases:
+        if i not in active_cases:
+            yield i
+
 
 
 class SftpClient:
@@ -138,9 +144,10 @@ class Case:
     def add_sftp_and_folder(self, raw_clip):
         try:
             self.awsPath2 = re.search(r'http.+supportattachments.+\d{8}', raw_clip).group()
+
         except:
             self.awsPath2 = ""
-
+        self.folderPath = str.format(r'G:\keys\{}', self.caseNumber)
         try:
             os.makedirs(self.folderPath)
         except FileExistsError:
@@ -170,7 +177,7 @@ class Case:
 
 if __name__ == '__main__':
     runtime_option = sys.argv[1]
-
+    local_path = 'G:\\keys\\'
     raw_clip = get_clipboard()
     CaseNum = re.search("04\d{6}", raw_clip).group()
     currentCase = Case(CaseNum)
@@ -178,7 +185,7 @@ if __name__ == '__main__':
 
     if runtime_option == "D":
         currentCase.add_sftp_and_folder2(raw_clip)
-        download_local_path = 'G:\\keys\\' + currentCase.caseNumber + '\\'
+        download_local_path = local_path + currentCase.caseNumber + '\\'
         print("downloading from sftp")
         port = 22
         print(currentCase.sftpPassw)
@@ -206,7 +213,16 @@ if __name__ == '__main__':
 
     if runtime_option == "Z":
         currentCase.add_sftp_and_folder(raw_clip)
-        download_local_path = 'G:\\keys\\' + currentCase.caseNumber + '\\'
+        download_local_path = local_path + currentCase.caseNumber + '\\'
         download_all_from_http(currentCase.awsPath2, download_local_path)
         unzip_all_in_folder(download_local_path, ".zip")
+
+    if runtime_option == "SF":
+        todelete = [i for i in case_list_from_clipboard(local_path)]
+        if input("now I will delete these, ok? " + ", ".join(todelete) + " y/n\n").lower() == 'y':
+            for i in todelete:
+                shutil.rmtree(local_path + '\\' + i)
+                print("deleted " + local_path + '\\' + i)
+
+
 
