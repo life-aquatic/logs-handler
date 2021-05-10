@@ -4,10 +4,12 @@ import re
 import os
 from paramiko import Transport, SFTPClient
 import zipfile
-from stat import S_ISDIR, S_ISREG
+from stat import S_ISDIR, S_ISREG, S_IWUSR
 import logging
 import urllib.request
 import shutil
+from selenium import webdriver
+import time
 
 #todo:
 #1) download not only files, but folders
@@ -21,29 +23,56 @@ import shutil
 
 
 def download_all_from_http(logFolderUrl, localFolder):
-    with urllib.request.urlopen(logFolderUrl) as response:
-        webPageContents = response.read().decode()
 
-    logFileUrls = re.findall(r'href="....+"', webPageContents)
+    options = webdriver.ChromeOptions()
+    prefs = {"download.default_directory": localFolder}
+    options.add_experimental_option("prefs", prefs)
+    driver = webdriver.Chrome(chrome_options=options)
+
+    driver.get(logFolderUrl)
+    all_links = driver.find_elements_by_partial_link_text("")
+    logFileUrls = [(driver.current_url + "/" + i.text, i.text) for i in all_links[1:]]
+
     for i in logFileUrls:
-        url = logFolderUrl + "/" + i[6:-1]
-        file_name = localFolder + i[6:-1]
-        print('downloading ' + file_name)
-        with urllib.request.urlopen(url) as response2:
-            with open(file_name, 'wb') as out_file:
-                shutil.copyfileobj(response2, out_file)
-        print('downloaded ' + file_name)
+        url = i[0]
+        file_name = localFolder + "/" + i[1]
+        print('starting download of ' + url)
+        driver.get(url)
+    print('all files queued for download')
 
-def unzip_all_in_folder(local_path, extension):
-    os.chdir(local_path)  # change directory from working dir to dir with files
-    for item in os.listdir(local_path):  # loop through items in dir
+
+    # wait for download complete
+    wait = True
+    while (wait == True):
+        atleastone = False
+        for item in os.listdir(localFolder):
+            if item.lower().endswith('crdownload'):
+                atleastone = True
+        if atleastone:
+            wait = True
+        else: wait = False
+        print('downloading files ...')
+        time.sleep(5)
+
+    print('finished downloading all files ...')
+    driver.close()
+
+def unzip_all_in_folder(local_source_path, local_target_path, extension):
+    unprocessed_files = []
+    os.chdir(local_source_path)  # change directory from working dir to dir with files
+    for item in os.listdir(local_source_path):  # loop through items in dir
         if item.lower().endswith(extension):  # check for ".zip" extension
+
             file_name = os.path.abspath(item)  # get full path of files
+            print("extracting from " + file_name)
             name_for_new_subfolder = os.path.basename(item)[0:-4]
             zip_ref = zipfile.ZipFile(file_name)  # create zipfile object
-            zip_ref.extractall(download_local_path + '\\' + name_for_new_subfolder)  # extract file to dir
-            print("extracted " + file_name)
+            zip_ref.extractall(local_target_path + '\\' + name_for_new_subfolder)  # extract file to dir
+            print("extracted to " + local_target_path + '\\' + name_for_new_subfolder + '\\' + item)
             zip_ref.close()  # close file
+        else:
+            unprocessed_files.append(item)
+    return unprocessed_files
 
 def case_list_from_clipboard(local_path):
     active_cases = re.findall("\d{8}", get_clipboard())
@@ -148,10 +177,10 @@ class Case:
         except:
             self.awsPath2 = ""
         self.folderPath = str.format(r'G:\keys\{}', self.caseNumber)
+        self.downloadPath =  str.format(r'C:\Users\Fedor.Nikitin\Downloads\{}', self.caseNumber)
         try:
             os.makedirs(self.folderPath)
         except FileExistsError:
-            # directory already exists
             pass
 
 
@@ -198,24 +227,18 @@ if __name__ == '__main__':
             print("downloaded " + item[0])
         client.close()
         unzip_all_in_folder(download_local_path, ".zip")
-        # os.chdir(download_local_path)  # change directory from working dir to dir with files
-        # for item in os.listdir(download_local_path):  # loop through items in dir
-        #     if item.endswith(extension):  # check for ".zip" extension
-        #         file_name = os.path.abspath(item)  # get full path of files
-        #         name_for_new_subfolder = os.path.basename(item)[0:17]
 
-        #         zip_ref = zipfile.ZipFile(file_name)  # create zipfile object
-        #         zip_ref.extractall(download_local_path + '\\' + name_for_new_subfolder)  # extract file to dir
-        #         print("extracted " + file_name)
-        #         zip_ref.close()  # close file
 
 
 
     if runtime_option == "Z":
         currentCase.add_sftp_and_folder(raw_clip)
-        download_local_path = local_path + currentCase.caseNumber + '\\'
-        download_all_from_http(currentCase.awsPath2, download_local_path)
-        unzip_all_in_folder(download_local_path, ".zip")
+        download_all_from_http(currentCase.awsPath2, currentCase.downloadPath)
+        unprocessed = unzip_all_in_folder(currentCase.downloadPath, currentCase.folderPath, ".zip")
+        if len(unprocessed) > 0:
+            for i in unprocessed:
+                print(i)
+            input("some files were left unprocessed. press any key to close")
 
     if runtime_option == "SF":
         todelete = [i for i in case_list_from_clipboard(local_path)]
