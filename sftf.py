@@ -39,6 +39,7 @@ def download_all_from_http(logFolderUrl, localFolder):
         print('starting download of ' + url)
         driver.get(url)
     print('all files queued for download')
+    driver.minimize_window()
 
 
     # wait for download complete
@@ -176,10 +177,11 @@ class Case:
 
         except:
             self.awsPath2 = ""
-        self.folderPath = str.format(r'G:\keys\{}', self.caseNumber)
+        self.folderPath = str.format(r'D:\keys\{}', self.caseNumber)
         self.downloadPath =  str.format(r'C:\Users\Fedor.Nikitin\Downloads\{}', self.caseNumber)
         try:
             os.makedirs(self.folderPath)
+            os.makedirs(self.downloadPath)
         except FileExistsError:
             pass
 
@@ -189,7 +191,7 @@ class Case:
         self.sftpLogin = parsed.group(1)
         self.sftpPassw = parsed.group(2)
         self.sftpAddr = parsed.group(3)
-        self.folderPath = str.format(r'G:\keys\{}', self.caseNumber)
+        self.folderPath = str.format(r'D:\keys\{}', self.caseNumber)
         try:
             os.makedirs(self.folderPath)
         except FileExistsError:
@@ -206,7 +208,7 @@ class Case:
 
 if __name__ == '__main__':
     runtime_option = sys.argv[1]
-    local_path = 'G:\\keys\\'
+    local_path = 'D:\\keys\\'
     raw_clip = get_clipboard()
     CaseNum = re.search("04\d{6}", raw_clip).group()
     currentCase = Case(CaseNum)
@@ -244,8 +246,13 @@ if __name__ == '__main__':
         todelete = [i for i in case_list_from_clipboard(local_path)]
         if input("now I will delete these, ok? " + ", ".join(todelete) + " y/n\n").lower() == 'y':
             for i in todelete:
-                shutil.rmtree(local_path + '\\' + i)
-                print("deleted " + local_path + '\\' + i)
+                try:
+                    shutil.rmtree(local_path + '\\' + i)
+                    print("deleted " + local_path + '\\' + i)
+                except BaseException as error:
+                    print ("unable to delete: {}: {}".format(i, error))
+                    pass
+        input("press Enter to exit")
 
 
 
