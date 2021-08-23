@@ -240,7 +240,7 @@ if __name__ == '__main__':
         if len(unprocessed) > 0:
             for i in unprocessed:
                 print(i)
-            input("some files were left unprocessed. press any key to close")
+            input("some files were left unprocessed. press enter to close")
 
     if runtime_option == "SF":
         todelete = [i for i in case_list_from_clipboard(local_path)]
