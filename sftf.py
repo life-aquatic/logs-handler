@@ -6,10 +6,12 @@ from paramiko import Transport, SFTPClient
 import zipfile
 from stat import S_ISDIR, S_ISREG, S_IWUSR
 import logging
-import urllib.request
 import shutil
 from selenium import webdriver
 import time
+
+
+
 
 #todo:
 #1) download not only files, but folders
@@ -23,7 +25,6 @@ import time
 
 
 def download_all_from_http(logFolderUrl, localFolder):
-
     options = webdriver.ChromeOptions()
     prefs = {"download.default_directory": localFolder}
     options.add_experimental_option("prefs", prefs)
@@ -31,6 +32,7 @@ def download_all_from_http(logFolderUrl, localFolder):
 
     driver.get(logFolderUrl)
     all_links = driver.find_elements_by_partial_link_text("")
+
     logFileUrls = [(driver.current_url + "/" + i.text, i.text) for i in all_links[1:]]
 
     for i in logFileUrls:
@@ -38,6 +40,7 @@ def download_all_from_http(logFolderUrl, localFolder):
         file_name = localFolder + "/" + i[1]
         print('starting download of ' + url)
         driver.get(url)
+
     print('all files queued for download')
     driver.minimize_window()
 
@@ -177,8 +180,8 @@ class Case:
 
         except:
             self.awsPath2 = ""
-        self.folderPath = str.format(r'D:\keys\{}', self.caseNumber)
-        self.downloadPath =  str.format(r'C:\Users\Fedor.Nikitin\Downloads\{}', self.caseNumber)
+        self.folderPath = str.format(r'C:\ks\{}', self.caseNumber)
+        self.downloadPath =  str.format(r'C:\ks\{}\raw', self.caseNumber)
         try:
             os.makedirs(self.folderPath)
             os.makedirs(self.downloadPath)
@@ -191,7 +194,7 @@ class Case:
         self.sftpLogin = parsed.group(1)
         self.sftpPassw = parsed.group(2)
         self.sftpAddr = parsed.group(3)
-        self.folderPath = str.format(r'D:\keys\{}', self.caseNumber)
+        self.folderPath = str.format(r'C:\ks\{}', self.caseNumber)
         try:
             os.makedirs(self.folderPath)
         except FileExistsError:
@@ -208,9 +211,11 @@ class Case:
 
 if __name__ == '__main__':
     runtime_option = sys.argv[1]
-    local_path = 'D:\\keys\\'
-    raw_clip = get_clipboard()
-    CaseNum = re.search("04\d{6}", raw_clip).group()
+    local_path = 'C:\\ks\\'
+    with open(r'c:\temp\log.txt', 'w') as f:
+        f.write('readme')
+    #raw_clip = get_clipboard()
+    CaseNum = re.search("05\d{6}", sys.argv[2]).group()
     currentCase = Case(CaseNum)
 
 
@@ -234,13 +239,17 @@ if __name__ == '__main__':
 
 
     if runtime_option == "Z":
-        currentCase.add_sftp_and_folder(raw_clip)
+        currentCase.add_sftp_and_folder(sys.argv[2])
+
         download_all_from_http(currentCase.awsPath2, currentCase.downloadPath)
+
         unprocessed = unzip_all_in_folder(currentCase.downloadPath, currentCase.folderPath, ".zip")
+
         if len(unprocessed) > 0:
             for i in unprocessed:
                 print(i)
             input("some files were left unprocessed. press enter to close")
+
 
     if runtime_option == "SF":
         todelete = [i for i in case_list_from_clipboard(local_path)]
@@ -252,7 +261,9 @@ if __name__ == '__main__':
                 except BaseException as error:
                     print ("unable to delete: {}: {}".format(i, error))
                     pass
-        input("press Enter to exit")
+        input("press any key to exit")
+
+
 
 
 
